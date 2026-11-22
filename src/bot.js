@@ -10,8 +10,8 @@ import makeWASocket, {
   Browsers,
 } from '@whiskeysockets/baileys'
 import { MongoClient } from 'mongodb'
-import { useMongoDBAuthState } from 'mongo-baileys'
-} from '@whiskeysockets/baileys'
+import pkg from 'mongo-baileys'
+const { useMongoDBAuthState } = pkg
 import { Boom } from '@hapi/boom'
 import pino from 'pino'
 import qrcode from 'qrcode-terminal'

@@ -5,7 +5,6 @@
  */
 
 import http from 'http'
-import QRCode from 'qrcode'
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
@@ -25,10 +24,10 @@ let statusConexao = 'Iniciando bot...'
 // Servidor HTTP para manter o Render ativo e exibir o QR Code no navegador
 const port = process.env.PORT || 10000
 http
-  .createServer(async (req, res) => {
+  .createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     if (ultimoQR) {
-      const qrImg = await QRCode.toDataURL(ultimoQR)
+      const qrImg = `https://qrserver.com{encodeURIComponent(ultimoQR)}`
       res.end(`
         <html>
           <head><meta http-equiv="refresh" content="20"><title>QR Code - Bot Cabide VIP</title></head>

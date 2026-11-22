@@ -3,12 +3,17 @@
  */
 
 import http from 'http'
-import makeWASocket, {
+iimport * as baileys from '@whiskeysockets/baileys'
+const makeWASocket =
+  baileys.makeWASocket ||
+  baileys.default?.makeWASocket ||
+  baileys.default
+const {
   DisconnectReason,
   fetchLatestBaileysVersion,
   useMultiFileAuthState,
   Browsers,
-} from '@whiskeysockets/baileys'
+} = baileys
 
 import pino from 'pino'
 import { config } from '../config.js'

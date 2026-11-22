@@ -113,7 +113,8 @@ async function iniciarBot() {
     process.exit(1)
   }
 
-    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
+   const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
+  const cacheMensagens = new Map()
 
   const sock = makeWASocket({
     auth: state,
@@ -121,7 +122,11 @@ async function iniciarBot() {
     logger: pino({ level: 'silent' }),
     browser: Browsers.ubuntu('Chrome'),
     syncFullHistory: false,
+    getMessage: async (key) => {
+      return cacheMensagens.get(key.id) || undefined
+    },
   })
+
 
 
   sock.ev.on('connection.update', (update) => {

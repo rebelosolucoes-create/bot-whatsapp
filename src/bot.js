@@ -22,37 +22,30 @@ import { config } from '../config.js'
 let ultimoQR = ''
 let statusConexao = 'Iniciando bot...'
 
-// Servidor HTTP para manter o Render ativo e exibir o QR Code no navegador
 const port = process.env.PORT || 10000
 http
   .createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     if (ultimoQR) {
-             const qrImg = 'https://' + 'api.' + 'qrserver.com' + '/v1/create-qr-code/?size=280x280&data=' + encodeURIComponent(ultimoQR)
-    res.end(
-        '<html>' +
-          '<head><meta http-equiv="refresh" content="20"><title>QR Code - Bot Cabide VIP</title></head>' +
+      const qrImg = 'https://' + 'api.' + 'qrserver.com' + '/v1/create-qr-code/?size=280x280&data=' + encodeURIComponent(ultimoQR)
+      res.end(
+        '<html><head><meta http-equiv="refresh" content="20"><title>QR Code - Bot Cabide VIP</title></head>' +
           '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
           '<h2>Escaneie o QR Code no WhatsApp</h2>' +
           '<img src="' + qrImg + '" style="width:280px;height:280px;" />' +
-          '<p>A página atualiza sozinha a cada 20 segundos.</p>' +
-          '</body></html>'
+          '<p>A página atualiza sozinha a cada 20 segundos.</p></body></html>'
       )
     } else {
       res.end(
-        '<html>' +
-          '<head><meta http-equiv="refresh" content="10"><title>Bot Cabide VIP</title></head>' +
+        '<html><head><meta http-equiv="refresh" content="10"><title>Bot Cabide VIP</title></head>' +
           '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
           '<h2>Bot WhatsApp — Cabide VIP</h2>' +
           '<p>Status: <strong>' + statusConexao + '</strong></p>' +
-          '<p>A página atualiza sozinha a cada 10 segundos.</p>' +
-          '</body></html>'
+          '<p>A página atualiza sozinha a cada 10 segundos.</p></body></html>'
       )
     }
   })
-  .listen(port, '0.0.0.0', () => {
-    console.log('🌐 Servidor HTTP ativo na porta ' + port)
-  })
+  .listen(port, '0.0.0.0', () => console.log('🌐 Servidor HTTP ativo na porta ' + port))
 
 const ATRASO_MIN_MS = 3000
 const ATRASO_MAX_MS = 8000
@@ -69,9 +62,9 @@ const RESPOSTAS_VIP = {
   valor: '💰 Nossos valores: consulte nosso catálogo ou digite *atendente*.',
   horário: '🕐 Funcionamos de seg a sex, das 9h às 18h.',
   horario: '🕐 Funcionamos ao sab a sex, das 9h às 15h.',
-  endereço: '📍 Endereço: Av Piaui, 417- Sala  1 — Estados.',
-  endereco: '📍 Endereço:  Av Piaui, 417- Sala  1 — Estados.',
-  localização: '📍 Estamos em  Av Piaui, 417- Sala  1 — Estados.',
+  endereço: '📍 Endereço: Av Piaui, 417- Sala 1 — Estados.',
+  endereco: '📍 Endereço: Av Piaui, 417- Sala 1 — Estados.',
+  localização: '📍 Estamos em Av Piaui, 417- Sala 1 — Estados.',
   pagamento: '💳 Aceitamos Pix, cartão.',
   entrega: '🚚 Fazemos entregas em até 3 dias úteis.',
   atendente: '👤 Ok! Vou chamar um atendente humano pra você. Aguarde um instante.',
@@ -111,10 +104,6 @@ function escolherRespostaVip(texto) {
   return MENU_VIP
 }
 
-async function respostaVip(texto) {
-  return escolherRespostaVip(texto)
-}
-
 function extrairTexto(msg) {
   return (
     msg.message?.conversation ||
@@ -129,9 +118,7 @@ let collection = null
 
 async function conectarMongo() {
   if (collection) return collection
-  if (!process.env.MONGO_URI) {
-    throw new Error('Variável MONGO_URI não configurada no Render!')
-  }
+  if (!process.env.MONGO_URI) throw new Error('Variável MONGO_URI não configurada no Render!')
   const mongoClient = new MongoClient(process.env.MONGO_URI)
   await mongoClient.connect()
   console.log('🍃 Conectado ao MongoDB Atlas com sucesso!')
@@ -147,16 +134,13 @@ async function useMongoAuthState(col) {
       { upsert: true }
     )
   }
-
   const readData = async (id) => {
     const doc = await col.findOne({ _id: id })
     return doc ? JSON.parse(doc.data, BufferJSON.reviver) : null
   }
-
   const removeData = async (id) => {
     await col.deleteOne({ _id: id })
   }
-
   const creds = (await readData('creds')) || initAuthCreds()
 
   return {
@@ -195,7 +179,7 @@ async function useMongoAuthState(col) {
 
 async function iniciarBot() {
   if (!config.attendantNumber) {
-    console.error('❌ Configure ATTENDANT_NUMBER no arquivo .env (seu número, só dígitos, ex: 5511999999999)')
+    console.error('❌ Configure ATTENDANT_NUMBER no Render!')
     process.exit(1)
   }
 
@@ -210,7 +194,6 @@ async function iniciarBot() {
     logger: pino({ level: 'silent' }),
     browser: Browsers.appropriate('Chrome'),
   })
-
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update
@@ -242,13 +225,7 @@ async function iniciarBot() {
   sock.ev.on('creds.update', saveCreds)
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return 
-
-    sock.ev.on('creds.update', saveCreds)
-
-    sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    console.log('📩 Evento messages.upsert recebido | type:', type, '| qtd:', messages.length)
-
+    console.log('📩 Evento messages.upsert | type:', type, '| qtd:', messages.length)
 
     for (const msg of messages) {
       if (!msg.message) continue
@@ -259,8 +236,7 @@ async function iniciarBot() {
 
       const jidResposta = msg.key.remoteJidAlt || jid
       const texto = extrairTexto(msg)
-
-      console.log('🔍 Msg de:', jid, '| Alt:', msg.key.remoteJidAlt || 'nenhum', '| Texto:', texto)
+      console.log('🔍 De:', jid, '| Alt:', msg.key.remoteJidAlt || '-', '| Texto:', texto)
 
       if (!texto) continue
 
@@ -274,20 +250,12 @@ async function iniciarBot() {
       }
       const ehGrupoVip = ehGrupo && nomeGrupo.includes((config.groupVipName || 'cabide vip').toLowerCase())
 
-      if (ehGrupo && !ehGrupoVip) {
-        console.log('ℹ️ Ignorado (grupo não é VIP):', nomeGrupo)
-        continue
-      }
-
-      if (!dentroDoLimite()) {
-        console.log('⏸️ Limite de respostas/minuto atingido.')
-        continue
-      }
+      if (ehGrupo && !ehGrupoVip) continue
+      if (!dentroDoLimite()) continue
       ultimasRespostas.push(Date.now())
 
       const numeroLimpo = jidResposta.split('@').at(0)
       const remetenteNome = msg.pushName || numeroLimpo
-      console.log('💬 [' + (ehGrupoVip ? 'GRUPO VIP' : 'DM') + '] ' + remetenteNome + ': ' + texto.slice(0, 80))
 
       await sock.sendPresenceUpdate('composing', jidResposta).catch(() => {})
       await sleep(ATRASO_MIN_MS + Math.random() * (ATRASO_MAX_MS - ATRASO_MIN_MS))
@@ -303,27 +271,5 @@ async function iniciarBot() {
           }
         } else {
           if (!podeResponderDM(jidResposta)) {
-            console.log('⏸️ Cooldown ativo para:', numeroLimpo)
             await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
             continue
-          }
-          await sock.sendMessage(jidResposta, { text: RESPOSTA_DM })
-          console.log('✅ Resposta enviada no privado de:', numeroLimpo)
-          await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
-            text: '🔔 *Nova conversa privada!*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
-          })
-          console.log('📨 Aviso enviado ao atendente!')
-        }
-      } catch (err) {
-        console.error('❌ Erro ao enviar resposta:', err)
-      }
-
-        await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
-    }
-  })
-}
-
-iniciarBot().catch((err) => {
-  statusConexao = 'Erro fatal: ' + err.message
-  console.error('❌ Erro fatal ao iniciar bot:', err)
-})

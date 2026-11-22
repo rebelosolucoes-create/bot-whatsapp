@@ -139,7 +139,6 @@ async function conectarMongo() {
   return collection
 }
 
-// Implementação nativa de salvamento de sessão no MongoDB (sem depender do pacote mongo-baileys)
 async function useMongoAuthState(col) {
   const writeData = async (data, id) => {
     await col.updateOne(
@@ -288,3 +287,4 @@ async function iniciarBot() {
         console.log('✅ Resposta automática enviada no grupo VIP')
 
         if (/atendente|humano/i.test(texto)) {
+          await sock.sendMessage(`${config.attendantNumber}@s.whatsapp.net`, {

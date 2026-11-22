@@ -28,7 +28,7 @@ http
   .createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     if (ultimoQR) {
-      const qrImg = 'https://qrserver.com' + encodeURIComponent(ultimoQR)
+       const qrImg = 'https://qrserver.com' + encodeURIComponent(ultimoQR)
       res.end(
         '<html>' +
           '<head><meta http-equiv="refresh" content="20"><title>QR Code - Bot Cabide VIP</title></head>' +
@@ -211,6 +211,7 @@ async function iniciarBot() {
     browser: Browsers.appropriate('Chrome'),
   })
 
+
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update
     if (qr) {
@@ -234,10 +235,7 @@ async function iniciarBot() {
       statusConexao = 'Conexão fechada (código ' + codigo + '). Reconectando: ' + reconectar
       console.log('⚠️ ' + statusConexao)
       if (reconectar) setTimeout(iniciarBot, 3000)
-      else {
-        console.log('❌ Sessão encerrada (logged out). Limpe a coleção auth_state no MongoDB e reinicie.')
-        process.exit(0)
-      }
+      else process.exit(0)
     }
   })
 
@@ -255,7 +253,6 @@ async function iniciarBot() {
       if (!texto) continue
 
       const ehGrupo = jid.endsWith('@g.us')
-
       let nomeGrupo = ''
       if (ehGrupo) {
         try {
@@ -265,15 +262,8 @@ async function iniciarBot() {
       }
       const ehGrupoVip = ehGrupo && nomeGrupo.includes(config.groupVipName.toLowerCase())
 
-      if (ehGrupo && !ehGrupoVip) {
-        console.log('ℹ️ Mensagem ignorada (grupo não é VIP): ' + nomeGrupo)
-        continue
-      }
-
-      if (!dentroDoLimite()) {
-        console.log('⏸️ Limite de respostas/minuto atingido. Pulando...')
-        continue
-      }
+      if (ehGrupo && !ehGrupoVip) continue
+      if (!dentroDoLimite()) continue
       ultimasRespostas.push(Date.now())
 
       const numeroLimpo = jid.split('@').at(0)
@@ -281,9 +271,32 @@ async function iniciarBot() {
       console.log('💬 [' + (ehGrupoVip ? 'GRUPO VIP' : 'DM') + '] ' + remetenteNome + ': ' + texto.slice(0, 80))
 
       await sock.sendPresenceUpdate('composing', jid).catch(() => {})
-      const atraso = ATRASO_MIN_MS + Math.random() * (ATRASO_MAX_MS - ATRASO_MIN_MS)
-      await sleep(atraso)
+      await sleep(ATRASO_MIN_MS + Math.random() * (ATRASO_MAX_MS - ATRASO_MIN_MS))
 
       if (ehGrupoVip) {
-        const resposta = await respostaVip(texto)
-        await sock.sendMessage(jid, { text: resposta })
+        await sock.sendMessage(jid, { text: escolherRespostaVip(texto) })
+        if (/atendente|humano/i.test(texto)) {
+          await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
+            text: '🔔 *Novo atendimento no grupo VIP*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
+          })
+        }
+      } else {
+        if (!podeResponderDM(jid)) {
+          await sock.sendPresenceUpdate('paused', jid).catch(() => {})
+          continue
+        }
+        await sock.sendMessage(jid, { text: RESPOSTA_DM })
+        await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
+          text: '🔔 *Nova conversa privada!*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
+        })
+      }
+
+      await sock.sendPresenceUpdate('paused', jid).catch(() => {})
+    }
+  })
+}
+
+iniciarBot().catch((err) => {
+  statusConexao = 'Erro fatal: ' + err.message
+  console.error('❌ Erro fatal ao iniciar bot:', err)
+})

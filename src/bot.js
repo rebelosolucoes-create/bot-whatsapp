@@ -5,13 +5,10 @@
 import http from 'http'
 import makeWASocket, {
   DisconnectReason,
+  fetchLatestBaileysVersion,
+  useMultiFileAuthState,
   Browsers,
-  initAuthCreds,
-  BufferJSON,
-  proto,
-  makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys'
-import { MongoClient } from 'mongodb'
 import pino from 'pino'
 import { config } from '../config.js'
 
@@ -25,11 +22,11 @@ http
     if (ultimoQR) {
       const qrImg = 'https://' + 'api.' + 'qrserver.com' + '/v1/create-qr-code/?size=280x280&data=' + encodeURIComponent(ultimoQR)
       res.end(
-        '<html><head><meta http-equiv="refresh" content="20"><title>QR Code - Bot Cabide VIP</title></head>' +
+        '<html><head><meta http-equiv="refresh" content="35"><title>QR Code - Bot Cabide VIP</title></head>' +
           '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
           '<h2>Escaneie o QR Code no WhatsApp</h2>' +
           '<img src="' + qrImg + '" style="width:280px;height:280px;" />' +
-          '<p>A página atualiza sozinha a cada 20 segundos.</p></body></html>'
+          '<p>A página atualiza a cada 35 segundos.</p></body></html>'
       )
     } else {
       res.end(
@@ -37,7 +34,7 @@ http
           '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
           '<h2>Bot WhatsApp — Cabide VIP</h2>' +
           '<p>Status: <strong>' + statusConexao + '</strong></p>' +
-          '<p>A página atualiza sozinha a cada 10 segundos.</p></body></html>'
+          '<p>A página atualiza a cada 10 segundos.</p></body></html>'
       )
     }
   })
@@ -110,106 +107,21 @@ function extrairTexto(msg) {
   )
 }
 
-let collection = null
-
-async function conectarMongo() {
-  if (collection) return collection
-  if (!process.env.MONGO_URI) throw new Error('Variável MONGO_URI não configurada no Render!')
-  const mongoClient = new MongoClient(process.env.MONGO_URI)
-  await mongoClient.connect()
-  console.log('🍃 Conectado ao MongoDB Atlas com sucesso!')
-  collection = mongoClient.db('cabide_vip').collection('auth_state')
-  return collection
-}
-
-function converterUint8ParaBuffer(obj) {
-  if (obj instanceof Uint8Array && !Buffer.isBuffer(obj)) {
-    return Buffer.from(obj)
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(converterUint8ParaBuffer)
-  }
-  if (obj && typeof obj === 'object') {
-    const novo = {}
-    for (const [k, v] of Object.entries(obj)) {
-      novo[k] = converterUint8ParaBuffer(v)
-    }
-    return novo
-  }
-  return obj
-}
-
-async function useMongoAuthState(col) {
-  const writeData = async (data, id) => {
-    const normalizado = converterUint8ParaBuffer(data)
-    await col.updateOne(
-      { _id: id },
-      { $set: { data: JSON.stringify(normalizado, BufferJSON.replacer) } },
-      { upsert: true }
-    )
-  }
-  const readData = async (id) => {
-    const doc = await col.findOne({ _id: id })
-    return doc ? JSON.parse(doc.data, BufferJSON.reviver) : null
-  }
-  const removeData = async (id) => {
-    await col.deleteOne({ _id: id })
-  }
-  const creds = (await readData('creds')) || initAuthCreds()
-
-  return {
-    state: {
-      creds,
-      keys: {
-        get: async (type, ids) => {
-          const data = {}
-          await Promise.all(
-            ids.map(async (id) => {
-              let value = await readData(type + '-' + id)
-              if (type === 'app-state-sync-key' && value) {
-                value = proto.Message.AppStateSyncKeyData.fromObject(value)
-              }
-              data[id] = value
-            })
-          )
-          return data
-        },
-        set: async (data) => {
-          const tasks = []
-          for (const category in data) {
-            for (const id in data[category]) {
-              const value = data[category][id]
-              const key = category + '-' + id
-              tasks.push(value ? writeData(value, key) : removeData(key))
-            }
-          }
-          await Promise.all(tasks)
-        },
-      },
-    },
-    saveCreds: () => writeData(creds, 'creds'),
-  }
-}
-
 async function iniciarBot() {
   if (!config.attendantNumber) {
     console.error('❌ Configure ATTENDANT_NUMBER no Render!')
     process.exit(1)
   }
 
-  const col = await conectarMongo()
-  const { state, saveCreds } = await useMongoAuthState(col)
-  const loggerSilencioso = pino({ level: 'silent' })
+  const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
+  const { version } = await fetchLatestBaileysVersion()
 
   const sock = makeWASocket({
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, loggerSilencioso),
-    },
+    version,
+    auth: state,
     printQRInTerminal: false,
-    logger: loggerSilencioso,
-    browser: Browsers.ubuntu('Chrome'),
-    markOnlineOnConnect: false,
+    logger: pino({ level: 'silent' }),
+    browser: Browsers.macOS('Desktop'),
     syncFullHistory: false,
   })
 
@@ -218,7 +130,7 @@ async function iniciarBot() {
     if (qr) {
       ultimoQR = qr
       statusConexao = 'Aguardando leitura do QR Code...'
-      console.log('📱 Novo QR Code gerado! Abra a página web para escanear.')
+      console.log('📱 QR Code gerado!')
     }
     if (connection === 'open') {
       ultimoQR = ''
@@ -227,10 +139,9 @@ async function iniciarBot() {
     }
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode
-      const motivo = lastDisconnect?.error?.message || 'desconhecido'
       const reconectar = statusCode !== DisconnectReason.loggedOut
-      statusConexao = 'Reconectando (' + statusCode + ': ' + motivo + ')...'
-      console.log('⚠️ Conexão fechada | Código:', statusCode, '| Motivo:', motivo)
+      statusConexao = 'Reconectando (' + statusCode + ')...'
+      console.log('⚠️ Conexão fechada | Código:', statusCode)
       if (reconectar) setTimeout(iniciarBot, 2000)
       else process.exit(0)
     }
@@ -239,22 +150,14 @@ async function iniciarBot() {
   sock.ev.on('creds.update', saveCreds)
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    console.log('📩 Evento messages.upsert | type:', type, '| qtd:', messages.length)
-
     for (const msg of messages) {
-      if (msg.key.fromMe) continue
-      if (!msg.message) {
-        console.log('⚠️ Pacote sem msg.message:', JSON.stringify({ key: msg.key, stub: msg.messageStubType }))
-        continue
-      }
+      if (msg.key.fromMe || !msg.message) continue
 
       const jid = msg.key.remoteJid
       if (!jid || jid === 'status@broadcast') continue
 
       const jidResposta = msg.key.remoteJidAlt || jid
       const texto = extrairTexto(msg)
-      console.log('🔍 De:', jid, '| Alt:', msg.key.remoteJidAlt || '-', '| Texto:', texto)
-
       if (!texto) continue
 
       const ehGrupo = jid.endsWith('@g.us')
@@ -273,6 +176,7 @@ async function iniciarBot() {
 
       const numeroLimpo = jidResposta.split('@').at(0)
       const remetenteNome = msg.pushName || numeroLimpo
+      console.log('💬 [' + (ehGrupoVip ? 'GRUPO VIP' : 'DM') + '] ' + remetenteNome + ': ' + texto.slice(0, 80))
 
       await sock.sendPresenceUpdate('composing', jidResposta).catch(() => {})
       await sleep(ATRASO_MIN_MS + Math.random() * (ATRASO_MAX_MS - ATRASO_MIN_MS))
@@ -280,7 +184,6 @@ async function iniciarBot() {
       try {
         if (ehGrupoVip) {
           await sock.sendMessage(jidResposta, { text: escolherRespostaVip(texto) })
-          console.log('✅ Resposta enviada no Grupo VIP!')
           if (/atendente|humano/i.test(texto)) {
             await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
               text: '🔔 *Novo atendimento no grupo VIP*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
@@ -292,12 +195,11 @@ async function iniciarBot() {
             continue
           }
           await sock.sendMessage(jidResposta, { text: RESPOSTA_DM })
-          console.log('✅ Resposta enviada no privado de:', numeroLimpo)
           await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
             text: '🔔 *Nova conversa privada!*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
           })
-          console.log('📨 Aviso enviado ao atendente!')
         }
+        console.log('✅ Resposta enviada com sucesso!')
       } catch (err) {
         console.error('❌ Erro ao enviar resposta:', err)
       }

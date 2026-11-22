@@ -273,3 +273,25 @@ async function iniciarBot() {
           if (!podeResponderDM(jidResposta)) {
             await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
             continue
+                      }
+          await sock.sendMessage(jidResposta, { text: RESPOSTA_DM })
+          console.log('✅ Resposta enviada no privado de:', numeroLimpo)
+          await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
+            text: '🔔 *Nova conversa privada!*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
+          })
+          console.log('📨 Aviso enviado ao atendente!')
+        }
+      } catch (err) {
+        console.error('❌ Erro ao enviar resposta:', err)
+      }
+
+      await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
+    }
+  })
+}
+
+iniciarBot().catch((err) => {
+  statusConexao = 'Erro fatal: ' + err.message
+  console.error('❌ Erro fatal ao iniciar bot:', err)
+})
+

@@ -88,7 +88,9 @@ const ultimasRespostas = []
 
 function dentroDoLimite() {
   const agora = Date.now()
-  while (ultimasRespostas.length && agora - ultimasRespostas[0] > 60000) ultimasRespostas.shift()
+  while (ultimasRespostas.length > 0 && agora - ultimasRespostas.at(0) > 60000) {
+    ultimasRespostas.shift()
+  }
   return ultimasRespostas.length < MAX_RESPOSTAS_POR_MINUTO
 }
 
@@ -247,7 +249,7 @@ async function iniciarBot() {
     for (const msg of messages) {
       if (msg.key.fromMe) continue
       const jid = msg.key.remoteJid
-      if (jid === 'status@broadcast') continue
+      if (!jid || jid === 'status@broadcast') continue
 
       const texto = extrairTexto(msg)
       if (!texto) continue
@@ -261,9 +263,12 @@ async function iniciarBot() {
           nomeGrupo = (meta.subject || '').toLowerCase()
         } catch {}
       }
-      const ehGrupoVip = ehGrupo && nomeGrupo.includes(config.groupVipName)
+      const ehGrupoVip = ehGrupo && nomeGrupo.includes(config.groupVipName.toLowerCase())
 
-      if (ehGrupo && !ehGrupoVip) continue
+      if (ehGrupo && !ehGrupoVip) {
+        console.log('ℹ️ Mensagem ignorada (grupo não é VIP): ' + nomeGrupo)
+        continue
+      }
 
       if (!dentroDoLimite()) {
         console.log('⏸️ Limite de respostas/minuto atingido. Pulando...')
@@ -271,7 +276,7 @@ async function iniciarBot() {
       }
       ultimasRespostas.push(Date.now())
 
-      const numeroLimpo = jid.split('@')[0]
+      const numeroLimpo = jid.split('@').at(0)
       const remetenteNome = msg.pushName || numeroLimpo
       console.log('💬 [' + (ehGrupoVip ? 'GRUPO VIP' : 'DM') + '] ' + remetenteNome + ': ' + texto.slice(0, 80))
 
@@ -282,5 +287,3 @@ async function iniciarBot() {
       if (ehGrupoVip) {
         const resposta = await respostaVip(texto)
         await sock.sendMessage(jid, { text: resposta })
-        console.log('✅ Resposta automática enviada no grupo VIP')
-

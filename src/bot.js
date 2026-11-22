@@ -10,6 +10,7 @@ const makeWASocket =
   baileys.default
 const {
   DisconnectReason,
+  fetchLatestWaWebVersion,
   fetchLatestBaileysVersion,
   useMultiFileAuthState,
   Browsers,
@@ -122,13 +123,23 @@ async function iniciarBot() {
   }
 
   const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
+  let version
+  try {
+    const res = await fetchLatestWaWebVersion({})
+    version = res.version
+  } catch {
+    const res = await fetchLatestBaileysVersion()
+    version = res.version
+  }
+  console.log('📡 Versão WhatsApp Web:', version)
   const cacheMensagens = new Map()
 
   const sock = makeWASocket({
+    version,
     auth: state,
     printQRInTerminal: false,
     logger: pino({ level: 'silent' }),
-    browser: Browsers.appropriate('Desktop'),
+    browser: Browsers.macOS('Chrome'),
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 0,
     keepAliveIntervalMs: 10000,

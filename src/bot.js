@@ -1,13 +1,10 @@
 /**
  * 🤖 Bot WhatsApp — Cabide VIP
- * - No GRUPO VIP: responde automaticamente (menu, preço, horário...)
- * - Em DM (privado): responde "chamando um atendente" e avisa o atendente
  */
 
 import http from 'http'
 import makeWASocket, {
   DisconnectReason,
-  fetchLatestBaileysVersion,
   Browsers,
   initAuthCreds,
   BufferJSON,
@@ -15,9 +12,7 @@ import makeWASocket, {
   makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys'
 import { MongoClient } from 'mongodb'
-import { Boom } from '@hapi/boom'
 import pino from 'pino'
-import qrcode from 'qrcode-terminal'
 import { config } from '../config.js'
 
 let ultimoQR = ''
@@ -127,8 +122,7 @@ async function conectarMongo() {
   return collection
 }
 
-async function useMongoAuthState(col) {
-  function converterUint8ParaBuffer(obj) {
+function converterUint8ParaBuffer(obj) {
   if (obj instanceof Uint8Array && !Buffer.isBuffer(obj)) {
     return Buffer.from(obj)
   }
@@ -197,49 +191,6 @@ async function useMongoAuthState(col) {
   }
 }
 
-  const readData = async (id) => {
-    const doc = await col.findOne({ _id: id })
-    return doc ? JSON.parse(doc.data, BufferJSON.reviver) : null
-  }
-  const removeData = async (id) => {
-    await col.deleteOne({ _id: id })
-  }
-  const creds = (await readData('creds')) || initAuthCreds()
-
-  return {
-    state: {
-      creds,
-      keys: {
-        get: async (type, ids) => {
-          const data = {}
-          await Promise.all(
-            ids.map(async (id) => {
-              let value = await readData(type + '-' + id)
-              if (type === 'app-state-sync-key' && value) {
-                value = proto.Message.AppStateSyncKeyData.fromObject(value)
-              }
-              data[id] = value
-            })
-          )
-          return data
-        },
-        set: async (data) => {
-          const tasks = []
-          for (const category in data) {
-            for (const id in data[category]) {
-              const value = data[category][id]
-              const key = category + '-' + id
-              tasks.push(value ? writeData(value, key) : removeData(key))
-            }
-          }
-          await Promise.all(tasks)
-        },
-      },
-    },
-    saveCreds: () => writeData(creds, 'creds'),
-  }
-}
-
 async function iniciarBot() {
   if (!config.attendantNumber) {
     console.error('❌ Configure ATTENDANT_NUMBER no Render!')
@@ -249,10 +200,8 @@ async function iniciarBot() {
   const col = await conectarMongo()
   const { state, saveCreds } = await useMongoAuthState(col)
   const loggerSilencioso = pino({ level: 'silent' })
-  const { version } = await fetchLatestBaileysVersion()
 
-    const sock = makeWASocket({
-    version,
+  const sock = makeWASocket({
     auth: {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, loggerSilencioso),
@@ -269,24 +218,20 @@ async function iniciarBot() {
     if (qr) {
       ultimoQR = qr
       statusConexao = 'Aguardando leitura do QR Code...'
-      console.log('\n📱 Escaneie o QR Code na página web ou abaixo:')
-      qrcode.generate(qr, { small: true })
+      console.log('📱 Novo QR Code gerado! Abra a página web para escanear.')
     }
     if (connection === 'open') {
       ultimoQR = ''
       statusConexao = '✅ Bot CONECTADO e operando!'
-      console.log('\n✅ Bot CONECTADO!')
-      console.log('   • Grupo VIP: "' + config.groupVipName + '" → respostas automáticas')
-      console.log('   • DM (privado) → "chamando atendente" + aviso para ' + config.attendantNumber + '\n')
+      console.log('✅ Bot CONECTADO e operando!')
     }
     if (connection === 'close') {
-      const codigo = lastDisconnect?.error instanceof Boom
-        ? lastDisconnect.error.output?.statusCode
-        : undefined
-      const reconectar = codigo !== DisconnectReason.loggedOut
-      statusConexao = 'Conexão fechada (código ' + codigo + '). Reconectando: ' + reconectar
-      console.log('⚠️ ' + statusConexao)
-      if (reconectar) setTimeout(iniciarBot, 3000)
+      const statusCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode
+      const motivo = lastDisconnect?.error?.message || 'desconhecido'
+      const reconectar = statusCode !== DisconnectReason.loggedOut
+      statusConexao = 'Reconectando (' + statusCode + ': ' + motivo + ')...'
+      console.log('⚠️ Conexão fechada | Código:', statusCode, '| Motivo:', motivo)
+      if (reconectar) setTimeout(iniciarBot, 2000)
       else process.exit(0)
     }
   })
@@ -296,10 +241,10 @@ async function iniciarBot() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     console.log('📩 Evento messages.upsert | type:', type, '| qtd:', messages.length)
 
-        for (const msg of messages) {
+    for (const msg of messages) {
       if (msg.key.fromMe) continue
       if (!msg.message) {
-        console.log('⚠️ Pacote sem msg.message | stub:', msg.messageStubType, '| jid:', msg.key.remoteJid)
+        console.log('⚠️ Pacote sem msg.message:', JSON.stringify({ key: msg.key, stub: msg.messageStubType }))
         continue
       }
 
@@ -345,7 +290,7 @@ async function iniciarBot() {
           if (!podeResponderDM(jidResposta)) {
             await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
             continue
-                      }
+          }
           await sock.sendMessage(jidResposta, { text: RESPOSTA_DM })
           console.log('✅ Resposta enviada no privado de:', numeroLimpo)
           await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
@@ -366,4 +311,3 @@ iniciarBot().catch((err) => {
   statusConexao = 'Erro fatal: ' + err.message
   console.error('❌ Erro fatal ao iniciar bot:', err)
 })
-

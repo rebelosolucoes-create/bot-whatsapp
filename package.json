@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "latest",
+    "@whiskeysockets/baileys": "npm:baileys@latest",
     "dotenv": "^16.4.5",
     "mongo-baileys": "^1.0.1",
     "mongodb": "^7.9.1",

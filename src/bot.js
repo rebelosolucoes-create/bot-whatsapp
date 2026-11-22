@@ -131,7 +131,7 @@ async function iniciarBot() {
     auth: state,
     printQRInTerminal: false,
     logger: pino({ level: 'silent' }),
-    browser: ['Windows', 'Chrome', '131.0.6778.109'],
+    browser: ['Ubuntu', 'Chrome', '20.0.04'],
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 0,
     keepAliveIntervalMs: 10000,
@@ -141,8 +141,39 @@ async function iniciarBot() {
       return cacheMensagens.get(key.id) || undefined
     },
   })
-  
+
+  if (!sock.authState.creds.registered) {
+    setTimeout(async () => {
+      try {
+        const codigo = await sock.requestPairingCode('5583921605055')
+        codigoPareamento = codigo
+        statusConexao = 'Aguardando digitar o código no WhatsApp...'
+        console.log('🔑 CÓDIGO DE PAREAMENTO:', codigo)
+      } catch (err) {
+        console.error('❌ Erro ao gerar código:', err.message)
+      }
+    }, 4000)
+  }
+
   sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update
+    if (connection === 'open') {
+      codigoPareamento = ''
+      statusConexao = '✅ Bot CONECTADO e operando!'
+      console.log('✅ Bot CONECTADO e operando!')
+    }
+    if (connection === 'close') {
+      const statusCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode
+      const reconectar = statusCode !== DisconnectReason.loggedOut
+      statusConexao = 'Reconectando (' + statusCode + ')...'
+      console.log('⚠️ Conexão fechada | Código:', statusCode)
+      if (reconectar) setTimeout(iniciarBot, 2000)
+      else process.exit(0)
+    }
+  })
+
+  sock.ev.on('creds.update', saveCreds)
+
     const { connection, lastDisconnect, qr } = update
     if (qr) {
       ultimoQR = qr

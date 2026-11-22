@@ -5,12 +5,12 @@
 import http from 'http'
 import makeWASocket, {
   DisconnectReason,
-  fetchLatestBaileysVersion,
   useMultiFileAuthState,
   Browsers,
 } from '@whiskeysockets/baileys'
 import pino from 'pino'
 import { config } from '../config.js'
+
 
 let ultimoQR = ''
 let statusConexao = 'Iniciando bot...'

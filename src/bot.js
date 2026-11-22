@@ -242,10 +242,13 @@ async function iniciarBot() {
   sock.ev.on('creds.update', saveCreds)
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return
+    if (type !== 'notify') return 
+
+    sock.ev.on('creds.update', saveCreds)
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
     console.log('📩 Evento messages.upsert recebido | type:', type, '| qtd:', messages.length)
+
 
     for (const msg of messages) {
       if (!msg.message) continue

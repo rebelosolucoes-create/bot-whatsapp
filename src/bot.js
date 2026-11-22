@@ -189,7 +189,7 @@ async function iniciarBot() {
   const loggerSilencioso = pino({ level: 'silent' })
   const { version } = await fetchLatestBaileysVersion()
 
-  const sock = makeWASocket({
+    const sock = makeWASocket({
     version,
     auth: {
       creds: state.creds,
@@ -197,9 +197,10 @@ async function iniciarBot() {
     },
     printQRInTerminal: false,
     logger: loggerSilencioso,
-    browser: Browsers.appropriate('Chrome'),
+    browser: Browsers.ubuntu('Chrome'),
+    markOnlineOnConnect: false,
+    syncFullHistory: false,
   })
-
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update
@@ -233,9 +234,12 @@ async function iniciarBot() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     console.log('📩 Evento messages.upsert | type:', type, '| qtd:', messages.length)
 
-    for (const msg of messages) {
-      if (!msg.message) continue
+        for (const msg of messages) {
       if (msg.key.fromMe) continue
+      if (!msg.message) {
+        console.log('⚠️ Pacote sem msg.message | stub:', msg.messageStubType, '| jid:', msg.key.remoteJid)
+        continue
+      }
 
       const jid = msg.key.remoteJid
       if (!jid || jid === 'status@broadcast') continue

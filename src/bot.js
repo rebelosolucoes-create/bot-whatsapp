@@ -315,7 +315,7 @@ async function iniciarBot() {
         console.error('❌ Erro ao enviar resposta:', err)
       }
 
-      await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
+        await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
     }
   })
 }

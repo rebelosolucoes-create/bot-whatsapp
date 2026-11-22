@@ -152,7 +152,7 @@ async function iniciarBot() {
   })
 
     sock.ev.on('creds.update', saveCreds)
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
     console.log('📩 Evento:', type, '| Qtd:', messages.length)
     for (const msg of messages) {
       if (msg.message && msg.key?.id) {
@@ -164,7 +164,7 @@ async function iniciarBot() {
       const jid = msg.key.remoteJid
       if (!jid || jid === 'status@broadcast') continue
 
-      const jidResposta = jid
+      const jidResposta = msg.key.remoteJidAlt || jid
       const texto = extrairTexto(msg)
       if (!texto) continue
 

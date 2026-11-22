@@ -19,8 +19,6 @@ const {
 import pino from 'pino'
 import { config } from '../config.js'
 
-
-
 let ultimoQR = ''
 let statusConexao = 'Iniciando bot...'
 
@@ -122,7 +120,7 @@ async function iniciarBot() {
     process.exit(1)
   }
 
-  const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
+ const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
   let version
   try {
     const res = await fetchLatestWaWebVersion({})
@@ -139,16 +137,17 @@ async function iniciarBot() {
     auth: state,
     printQRInTerminal: false,
     logger: pino({ level: 'silent' }),
-    browser: Browsers.macOS('Chrome'),
+    browser: ['Windows', 'Chrome', '131.0.6778.109'],
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 0,
     keepAliveIntervalMs: 10000,
     syncFullHistory: false,
+    generateHighQualityLinkPreview: false,
     getMessage: async (key) => {
       return cacheMensagens.get(key.id) || undefined
     },
   })
-
+  
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update
     if (qr) {

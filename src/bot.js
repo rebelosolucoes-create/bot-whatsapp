@@ -3,7 +3,7 @@
  */
 
 import http from 'http'
-iimport * as baileys from '@whiskeysockets/baileys'
+import * as baileys from '@whiskeysockets/baileys'
 const makeWASocket =
   baileys.makeWASocket ||
   baileys.default?.makeWASocket ||

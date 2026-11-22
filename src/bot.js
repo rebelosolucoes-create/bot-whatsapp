@@ -128,13 +128,75 @@ async function conectarMongo() {
 }
 
 async function useMongoAuthState(col) {
+  function converterUint8ParaBuffer(obj) {
+  if (obj instanceof Uint8Array && !Buffer.isBuffer(obj)) {
+    return Buffer.from(obj)
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(converterUint8ParaBuffer)
+  }
+  if (obj && typeof obj === 'object') {
+    const novo = {}
+    for (const [k, v] of Object.entries(obj)) {
+      novo[k] = converterUint8ParaBuffer(v)
+    }
+    return novo
+  }
+  return obj
+}
+
+async function useMongoAuthState(col) {
   const writeData = async (data, id) => {
+    const normalizado = converterUint8ParaBuffer(data)
     await col.updateOne(
       { _id: id },
-      { $set: { data: JSON.stringify(data, BufferJSON.replacer) } },
+      { $set: { data: JSON.stringify(normalizado, BufferJSON.replacer) } },
       { upsert: true }
     )
   }
+  const readData = async (id) => {
+    const doc = await col.findOne({ _id: id })
+    return doc ? JSON.parse(doc.data, BufferJSON.reviver) : null
+  }
+  const removeData = async (id) => {
+    await col.deleteOne({ _id: id })
+  }
+  const creds = (await readData('creds')) || initAuthCreds()
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = {}
+          await Promise.all(
+            ids.map(async (id) => {
+              let value = await readData(type + '-' + id)
+              if (type === 'app-state-sync-key' && value) {
+                value = proto.Message.AppStateSyncKeyData.fromObject(value)
+              }
+              data[id] = value
+            })
+          )
+          return data
+        },
+        set: async (data) => {
+          const tasks = []
+          for (const category in data) {
+            for (const id in data[category]) {
+              const value = data[category][id]
+              const key = category + '-' + id
+              tasks.push(value ? writeData(value, key) : removeData(key))
+            }
+          }
+          await Promise.all(tasks)
+        },
+      },
+    },
+    saveCreds: () => writeData(creds, 'creds'),
+  }
+}
+
   const readData = async (id) => {
     const doc = await col.findOne({ _id: id })
     return doc ? JSON.parse(doc.data, BufferJSON.reviver) : null

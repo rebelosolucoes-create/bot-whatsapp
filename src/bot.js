@@ -12,6 +12,7 @@ import makeWASocket, {
   initAuthCreds,
   BufferJSON,
   proto,
+  makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys'
 import { MongoClient } from 'mongodb'
 import { Boom } from '@hapi/boom'

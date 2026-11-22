@@ -28,32 +28,30 @@ http
   .createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     if (ultimoQR) {
-      const qrImg = `https://qrserver.com{encodeURIComponent(ultimoQR)}`
-      res.end(`
-        <html>
-          <head><meta http-equiv="refresh" content="20"><title>QR Code - Bot Cabide VIP</title></head>
-          <body style="font-family:sans-serif;text-align:center;padding:40px;">
-            <h2>Escaneie o QR Code no WhatsApp</h2>
-            <img src="${qrImg}" style="width:280px;height:280px;" />
-            <p>A página atualiza sozinha a cada 20 segundos.</p>
-          </body>
-        </html>
-      `)
+      const qrImg = 'https://qrserver.com' + encodeURIComponent(ultimoQR)
+      res.end(
+        '<html>' +
+          '<head><meta http-equiv="refresh" content="20"><title>QR Code - Bot Cabide VIP</title></head>' +
+          '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
+          '<h2>Escaneie o QR Code no WhatsApp</h2>' +
+          '<img src="' + qrImg + '" style="width:280px;height:280px;" />' +
+          '<p>A página atualiza sozinha a cada 20 segundos.</p>' +
+          '</body></html>'
+      )
     } else {
-      res.end(`
-        <html>
-          <head><meta http-equiv="refresh" content="10"><title>Bot Cabide VIP</title></head>
-          <body style="font-family:sans-serif;text-align:center;padding:40px;">
-            <h2>Bot WhatsApp — Cabide VIP</h2>
-            <p>Status: <strong>${statusConexao}</strong></p>
-            <p>A página atualiza sozinha a cada 10 segundos.</p>
-          </body>
-        </html>
-      `)
+      res.end(
+        '<html>' +
+          '<head><meta http-equiv="refresh" content="10"><title>Bot Cabide VIP</title></head>' +
+          '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
+          '<h2>Bot WhatsApp — Cabide VIP</h2>' +
+          '<p>Status: <strong>' + statusConexao + '</strong></p>' +
+          '<p>A página atualiza sozinha a cada 10 segundos.</p>' +
+          '</body></html>'
+      )
     }
   })
   .listen(port, '0.0.0.0', () => {
-    console.log(`🌐 Servidor HTTP ativo na porta ${port}`)
+    console.log('🌐 Servidor HTTP ativo na porta ' + port)
   })
 
 const ATRASO_MIN_MS = 3000
@@ -167,7 +165,7 @@ async function useMongoAuthState(col) {
           const data = {}
           await Promise.all(
             ids.map(async (id) => {
-              let value = await readData(`${type}-${id}`)
+              let value = await readData(type + '-' + id)
               if (type === 'app-state-sync-key' && value) {
                 value = proto.Message.AppStateSyncKeyData.fromObject(value)
               }
@@ -181,7 +179,7 @@ async function useMongoAuthState(col) {
           for (const category in data) {
             for (const id in data[category]) {
               const value = data[category][id]
-              const key = `${category}-${id}`
+              const key = category + '-' + id
               tasks.push(value ? writeData(value, key) : removeData(key))
             }
           }
@@ -223,16 +221,16 @@ async function iniciarBot() {
       ultimoQR = ''
       statusConexao = '✅ Bot CONECTADO e operando!'
       console.log('\n✅ Bot CONECTADO!')
-      console.log(`   • Grupo VIP: "${config.groupVipName}" → respostas automáticas`)
-      console.log(`   • DM (privado) → "chamando atendente" + aviso para ${config.attendantNumber}\n`)
+      console.log('   • Grupo VIP: "' + config.groupVipName + '" → respostas automáticas')
+      console.log('   • DM (privado) → "chamando atendente" + aviso para ' + config.attendantNumber + '\n')
     }
     if (connection === 'close') {
       const codigo = lastDisconnect?.error instanceof Boom
         ? lastDisconnect.error.output?.statusCode
         : undefined
       const reconectar = codigo !== DisconnectReason.loggedOut
-      statusConexao = `Conexão fechada (código ${codigo}). Reconectando: ${reconectar}`
-      console.log(`⚠️ ${statusConexao}`)
+      statusConexao = 'Conexão fechada (código ' + codigo + '). Reconectando: ' + reconectar
+      console.log('⚠️ ' + statusConexao)
       if (reconectar) setTimeout(iniciarBot, 3000)
       else {
         console.log('❌ Sessão encerrada (logged out). Limpe a coleção auth_state no MongoDB e reinicie.')
@@ -275,7 +273,7 @@ async function iniciarBot() {
 
       const numeroLimpo = jid.split('@')[0]
       const remetenteNome = msg.pushName || numeroLimpo
-      console.log(`💬 [${ehGrupoVip ? 'GRUPO VIP' : 'DM'}] ${remetenteNome}: ${texto.slice(0, 80)}`)
+      console.log('💬 [' + (ehGrupoVip ? 'GRUPO VIP' : 'DM') + '] ' + remetenteNome + ': ' + texto.slice(0, 80))
 
       await sock.sendPresenceUpdate('composing', jid).catch(() => {})
       const atraso = ATRASO_MIN_MS + Math.random() * (ATRASO_MAX_MS - ATRASO_MIN_MS)
@@ -286,5 +284,3 @@ async function iniciarBot() {
         await sock.sendMessage(jid, { text: resposta })
         console.log('✅ Resposta automática enviada no grupo VIP')
 
-        if (/atendente|humano/i.test(texto)) {
-          await sock.sendMessage(`${config.attendantNumber}@s.whatsapp.net`, {

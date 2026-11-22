@@ -113,17 +113,16 @@ async function iniciarBot() {
     process.exit(1)
   }
 
-  const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
-  const { version } = await fetchLatestBaileysVersion()
+    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
 
   const sock = makeWASocket({
-    version,
     auth: state,
     printQRInTerminal: false,
     logger: pino({ level: 'silent' }),
-    browser: Browsers.macOS('Desktop'),
+    browser: Browsers.ubuntu('Chrome'),
     syncFullHistory: false,
   })
+
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update

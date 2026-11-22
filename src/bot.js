@@ -244,12 +244,21 @@ async function iniciarBot() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
 
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    console.log('📩 Evento messages.upsert recebido | type:', type, '| qtd:', messages.length)
+
     for (const msg of messages) {
+      if (!msg.message) continue
       if (msg.key.fromMe) continue
+
       const jid = msg.key.remoteJid
       if (!jid || jid === 'status@broadcast') continue
 
+      const jidResposta = msg.key.remoteJidAlt || jid
       const texto = extrairTexto(msg)
+
+      console.log('🔍 Msg de:', jid, '| Alt:', msg.key.remoteJidAlt || 'nenhum', '| Texto:', texto)
+
       if (!texto) continue
 
       const ehGrupo = jid.endsWith('@g.us')
@@ -260,38 +269,53 @@ async function iniciarBot() {
           nomeGrupo = (meta.subject || '').toLowerCase()
         } catch {}
       }
-      const ehGrupoVip = ehGrupo && nomeGrupo.includes(config.groupVipName.toLowerCase())
+      const ehGrupoVip = ehGrupo && nomeGrupo.includes((config.groupVipName || 'cabide vip').toLowerCase())
 
-      if (ehGrupo && !ehGrupoVip) continue
-      if (!dentroDoLimite()) continue
+      if (ehGrupo && !ehGrupoVip) {
+        console.log('ℹ️ Ignorado (grupo não é VIP):', nomeGrupo)
+        continue
+      }
+
+      if (!dentroDoLimite()) {
+        console.log('⏸️ Limite de respostas/minuto atingido.')
+        continue
+      }
       ultimasRespostas.push(Date.now())
 
-      const numeroLimpo = jid.split('@').at(0)
+      const numeroLimpo = jidResposta.split('@').at(0)
       const remetenteNome = msg.pushName || numeroLimpo
       console.log('💬 [' + (ehGrupoVip ? 'GRUPO VIP' : 'DM') + '] ' + remetenteNome + ': ' + texto.slice(0, 80))
 
-      await sock.sendPresenceUpdate('composing', jid).catch(() => {})
+      await sock.sendPresenceUpdate('composing', jidResposta).catch(() => {})
       await sleep(ATRASO_MIN_MS + Math.random() * (ATRASO_MAX_MS - ATRASO_MIN_MS))
 
-      if (ehGrupoVip) {
-        await sock.sendMessage(jid, { text: escolherRespostaVip(texto) })
-        if (/atendente|humano/i.test(texto)) {
+      try {
+        if (ehGrupoVip) {
+          await sock.sendMessage(jidResposta, { text: escolherRespostaVip(texto) })
+          console.log('✅ Resposta enviada no Grupo VIP!')
+          if (/atendente|humano/i.test(texto)) {
+            await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
+              text: '🔔 *Novo atendimento no grupo VIP*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
+            })
+          }
+        } else {
+          if (!podeResponderDM(jidResposta)) {
+            console.log('⏸️ Cooldown ativo para:', numeroLimpo)
+            await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
+            continue
+          }
+          await sock.sendMessage(jidResposta, { text: RESPOSTA_DM })
+          console.log('✅ Resposta enviada no privado de:', numeroLimpo)
           await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
-            text: '🔔 *Novo atendimento no grupo VIP*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
+            text: '🔔 *Nova conversa privada!*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
           })
+          console.log('📨 Aviso enviado ao atendente!')
         }
-      } else {
-        if (!podeResponderDM(jid)) {
-          await sock.sendPresenceUpdate('paused', jid).catch(() => {})
-          continue
-        }
-        await sock.sendMessage(jid, { text: RESPOSTA_DM })
-        await sock.sendMessage(config.attendantNumber + '@s.whatsapp.net', {
-          text: '🔔 *Nova conversa privada!*\n👤 ' + remetenteNome + ' (' + numeroLimpo + ')\n💬 ' + texto,
-        })
+      } catch (err) {
+        console.error('❌ Erro ao enviar resposta:', err)
       }
 
-      await sock.sendPresenceUpdate('paused', jid).catch(() => {})
+      await sock.sendPresenceUpdate('paused', jidResposta).catch(() => {})
     }
   })
 }

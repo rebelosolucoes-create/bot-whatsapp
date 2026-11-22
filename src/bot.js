@@ -9,10 +9,11 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   Browsers,
+  initAuthCreds,
+  BufferJSON,
+  proto,
 } from '@whiskeysockets/baileys'
 import { MongoClient } from 'mongodb'
-import pkg from 'mongo-baileys'
-const { useMongoDBAuthState } = pkg
 import { Boom } from '@hapi/boom'
 import pino from 'pino'
 import qrcode from 'qrcode-terminal'
@@ -138,6 +139,61 @@ async function conectarMongo() {
   return collection
 }
 
+// Implementação nativa de salvamento de sessão no MongoDB (sem depender do pacote mongo-baileys)
+async function useMongoAuthState(col) {
+  const writeData = async (data, id) => {
+    await col.updateOne(
+      { _id: id },
+      { $set: { data: JSON.stringify(data, BufferJSON.replacer) } },
+      { upsert: true }
+    )
+  }
+
+  const readData = async (id) => {
+    const doc = await col.findOne({ _id: id })
+    return doc ? JSON.parse(doc.data, BufferJSON.reviver) : null
+  }
+
+  const removeData = async (id) => {
+    await col.deleteOne({ _id: id })
+  }
+
+  const creds = (await readData('creds')) || initAuthCreds()
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = {}
+          await Promise.all(
+            ids.map(async (id) => {
+              let value = await readData(`${type}-${id}`)
+              if (type === 'app-state-sync-key' && value) {
+                value = proto.Message.AppStateSyncKeyData.fromObject(value)
+              }
+              data[id] = value
+            })
+          )
+          return data
+        },
+        set: async (data) => {
+          const tasks = []
+          for (const category in data) {
+            for (const id in data[category]) {
+              const value = data[category][id]
+              const key = `${category}-${id}`
+              tasks.push(value ? writeData(value, key) : removeData(key))
+            }
+          }
+          await Promise.all(tasks)
+        },
+      },
+    },
+    saveCreds: () => writeData(creds, 'creds'),
+  }
+}
+
 async function iniciarBot() {
   if (!config.attendantNumber) {
     console.error('❌ Configure ATTENDANT_NUMBER no arquivo .env (seu número, só dígitos, ex: 5511999999999)')
@@ -145,7 +201,7 @@ async function iniciarBot() {
   }
 
   const col = await conectarMongo()
-  const { state, saveCreds } = await useMongoDBAuthState(col)
+  const { state, saveCreds } = await useMongoAuthState(col)
   const { version } = await fetchLatestBaileysVersion()
 
   const sock = makeWASocket({
@@ -218,7 +274,8 @@ async function iniciarBot() {
       }
       ultimasRespostas.push(Date.now())
 
-      const remetenteNome = msg.pushName || jid.split('@')[0]
+      const numeroLimpo = jid.split('@')[0]
+      const remetenteNome = msg.pushName || numeroLimpo
       console.log(`💬 [${ehGrupoVip ? 'GRUPO VIP' : 'DM'}] ${remetenteNome}: ${texto.slice(0, 80)}`)
 
       await sock.sendPresenceUpdate('composing', jid).catch(() => {})
@@ -231,31 +288,3 @@ async function iniciarBot() {
         console.log('✅ Resposta automática enviada no grupo VIP')
 
         if (/atendente|humano/i.test(texto)) {
-          await sock.sendMessage(`${config.attendantNumber}@s.whatsapp.net`, {
-            text: `🔔 *Novo atendimento solicitado no grupo VIP*\n👤 Nome: ${remetenteNome}\n📱 Número: ${jid.split('@')[0]}\n💬 Mensagem: ${texto}`,
-          })
-        }
-      } else {
-        if (!podeResponderDM(jid)) {
-          console.log('⏸️ Cooldown ativo para este contato.')
-          await sock.sendPresenceUpdate('paused', jid).catch(() => {})
-          continue
-        }
-        await sock.sendMessage(jid, { text: RESPOSTA_DM })
-        console.log(`✅ Resposta automática enviada no privado de ${remetenteNome}`)
-
-        await sock.sendMessage(`${config.attendantNumber}@s.whatsapp.net`, {
-          text: `🔔 *Nova conversa privada recebida!*\n👤 Nome: ${remetenteNome}\n📱 Número: ${jid.split('@')[0]}\n💬 Mensagem: ${texto}\n\n👉 Responda direto pelo número ${jid.split('@')[0]}`,
-        })
-        console.log(`📨 Aviso enviado para o atendente (${config.attendantNumber})`)
-      }
-
-      await sock.sendPresenceUpdate('paused', jid).catch(() => {})
-    }
-  })
-}
-
-iniciarBot().catch((err) => {
-  statusConexao = `Erro fatal: ${err.message}`
-  console.error('❌ Erro fatal ao iniciar bot:', err)
-})

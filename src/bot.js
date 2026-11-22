@@ -27,7 +27,7 @@ http
   .createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     res.end(
-      '<html><head><meta http-equiv="refresh" content="15"><title>Bot Cabide VIP</title></head>' +
+        '<html><head><meta http-equiv="refresh" content="60"><title>Bot Cabide VIP</title></head>' +
         '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
         '<h2>Bot WhatsApp — Cabide VIP</h2>' +
         '<p>Status: <strong>' + statusConexao + '</strong></p>' +
@@ -114,17 +114,17 @@ async function iniciarBot() {
     process.exit(1)
   }
 
- const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
-  let version
+  const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
+  let version = [2, 3000, 1055816824]
   try {
     const res = await fetchLatestWaWebVersion({})
-    version = res.version
-  } catch {
-    const res = await fetchLatestBaileysVersion()
-    version = res.version
-  }
+    if (res && res.version && res.version.at(2) > 1050000000) {
+      version = res.version
+    }
+  } catch {}
   console.log('📡 Versão WhatsApp Web:', version)
   const cacheMensagens = new Map()
+
 
   const sock = makeWASocket({
     version,

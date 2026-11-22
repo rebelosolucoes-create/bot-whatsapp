@@ -5,10 +5,12 @@
  */
 
 import makeWASocket, {
-  useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
   Browsers,
+} from '@whiskeysockets/baileys'
+import { MongoClient } from 'mongodb'
+import { useMongoDBAuthState } from 'mongo-baileys'
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import pino from 'pino'
@@ -90,8 +92,13 @@ async function iniciarBot() {
     process.exit(1)
   }
 
-  const { state, saveCreds } = await useMultiFileAuthState('./auth')
+  const mongoClient = new MongoClient(process.env.MONGO_URI)
+  await mongoClient.connect()
+  const collection = mongoClient.db('cabide_vip').collection('auth_state')
+
+  const { state, saveCreds } = await useMongoDBAuthState(collection)
   const { version } = await fetchLatestBaileysVersion()
+
 
   const sock = makeWASocket({
     version,
@@ -195,6 +202,24 @@ async function iniciarBot() {
     }
   })
 }
+
+// 1. Deixe isso FORA da função iniciarBot() (no topo do arquivo, após os imports)
+const mongoClient = new MongoClient(process.env.MONGO_URI)
+await mongoClient.connect()
+const collection = mongoClient.db('cabide_vip').collection('auth_state')
+
+async function iniciarBot() {
+  // 2. Dentro da função iniciarBot(), deixe apenas estas duas linhas:
+  const { state, saveCreds } = await useMongoDBAuthState(collection)
+  const { version } = await fetchLatestBaileysVersion()
+
+  const sock = makeWASocket({
+    version,
+    auth: state,
+    printQRInTerminal: false,
+    logger: pino({ level: 'silent' }),
+    browser: Browsers.appropriate('Chrome'),
+  })
 
 iniciarBot().catch((err) => {
   console.error('❌ Erro fatal:', err)

@@ -8,9 +8,11 @@
     "start": "node src/bot.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.18",
     "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.18",
     "dotenv": "^16.4.5",
+    "mongo-baileys": "^1.0.1",
+    "mongodb": "^7.9.1",
     "pino": "^9.3.2",
     "qrcode-terminal": "^0.12.0"
   },

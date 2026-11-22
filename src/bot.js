@@ -3,13 +3,16 @@
  */
 
 import http from 'http'
-import makeWASocket, {
+import baileys from '@whiskeysockets/baileys'
+const makeWASocket = baileys.default || baileys
+const {
   DisconnectReason,
   useMultiFileAuthState,
   Browsers,
-} from '@whiskeysockets/baileys'
+} = baileys
 import pino from 'pino'
 import { config } from '../config.js'
+
 
 
 let ultimoQR = ''

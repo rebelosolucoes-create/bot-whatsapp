@@ -3,13 +3,15 @@
  */
 
 import http from 'http'
-import baileys from '@whiskeysockets/baileys'
+iimport baileys from '@whiskeysockets/baileys'
 const makeWASocket = baileys.default || baileys
 const {
   DisconnectReason,
+  fetchLatestBaileysVersion,
   useMultiFileAuthState,
   Browsers,
 } = baileys
+
 import pino from 'pino'
 import { config } from '../config.js'
 

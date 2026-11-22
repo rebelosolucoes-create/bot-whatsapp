@@ -3,14 +3,12 @@
  */
 
 import http from 'http'
-import baileys from '@whiskeysockets/baileys'
-const makeWASocket = baileys.default || baileys
-const {
+import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   useMultiFileAuthState,
   Browsers,
-} = baileys
+} from '@whiskeysockets/baileys'
 
 import pino from 'pino'
 import { config } from '../config.js'
@@ -118,10 +116,12 @@ async function iniciarBot() {
     process.exit(1)
   }
 
-   const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
-   const cacheMensagens = new Map()
+  const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
+  const { version } = await fetchLatestBaileysVersion()
+  const cacheMensagens = new Map()
 
   const sock = makeWASocket({
+    version,
     auth: state,
     printQRInTerminal: false,
     logger: pino({ level: 'silent' }),

@@ -19,31 +19,25 @@ const {
 import pino from 'pino'
 import { config } from '../config.js'
 
-let ultimoQR = ''
-let statusConexao = 'Iniciando bot...'
+let codigoPareamento = ''
+let statusConexao = 'Gerando código de pareamento...'
 
 const port = process.env.PORT || 10000
 http
   .createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-    if (ultimoQR) {
-      const qrImg = 'https://' + 'api.' + 'qrserver.com' + '/v1/create-qr-code/?size=280x280&data=' + encodeURIComponent(ultimoQR)
-      res.end(
-        '<html><head><meta http-equiv="refresh" content="35"><title>QR Code - Bot Cabide VIP</title></head>' +
-          '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
-          '<h2>Escaneie o QR Code no WhatsApp</h2>' +
-          '<img src="' + qrImg + '" style="width:280px;height:280px;" />' +
-          '<p>A página atualiza a cada 35 segundos.</p></body></html>'
-      )
-    } else {
-      res.end(
-        '<html><head><meta http-equiv="refresh" content="10"><title>Bot Cabide VIP</title></head>' +
-          '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
-          '<h2>Bot WhatsApp — Cabide VIP</h2>' +
-          '<p>Status: <strong>' + statusConexao + '</strong></p>' +
-          '<p>A página atualiza a cada 10 segundos.</p></body></html>'
-      )
-    }
+    res.end(
+      '<html><head><meta http-equiv="refresh" content="15"><title>Bot Cabide VIP</title></head>' +
+        '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
+        '<h2>Bot WhatsApp — Cabide VIP</h2>' +
+        '<p>Status: <strong>' + statusConexao + '</strong></p>' +
+        (codigoPareamento
+          ? '<div style="margin:25px auto;padding:20px;max-width:340px;border:2px solid #25D366;border-radius:12px;background:#f0fff4;">' +
+            '<p style="margin:0 0 10px;">Digite este código no WhatsApp<br><small>(Dispositivos Conectados → Conectar com número de telefone)</small></p>' +
+            '<h1 style="letter-spacing:6px;color:#128C7E;margin:10px 0;">' + codigoPareamento + '</h1></div>'
+          : '') +
+        '<p>A página atualiza a cada 15 segundos.</p></body></html>'
+    )
   })
   .listen(port, '0.0.0.0', () => console.log('🌐 Servidor HTTP ativo na porta ' + port))
 

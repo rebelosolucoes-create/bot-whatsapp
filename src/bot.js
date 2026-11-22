@@ -122,22 +122,21 @@ async function iniciarBot() {
   }
 
   const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
-  const { version } = await fetchLatestBaileysVersion()
   const cacheMensagens = new Map()
 
   const sock = makeWASocket({
-    version,
     auth: state,
     printQRInTerminal: false,
     logger: pino({ level: 'silent' }),
-    browser: Browsers.ubuntu('Chrome'),
+    browser: Browsers.appropriate('Desktop'),
+    connectTimeoutMs: 60000,
+    defaultQueryTimeoutMs: 0,
+    keepAliveIntervalMs: 10000,
     syncFullHistory: false,
     getMessage: async (key) => {
       return cacheMensagens.get(key.id) || undefined
     },
   })
-
-
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update

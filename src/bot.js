@@ -186,15 +186,20 @@ async function iniciarBot() {
 
   const col = await conectarMongo()
   const { state, saveCreds } = await useMongoAuthState(col)
+  const loggerSilencioso = pino({ level: 'silent' })
   const { version } = await fetchLatestBaileysVersion()
 
   const sock = makeWASocket({
     version,
-    auth: state,
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, loggerSilencioso),
+    },
     printQRInTerminal: false,
-    logger: pino({ level: 'silent' }),
+    logger: loggerSilencioso,
     browser: Browsers.appropriate('Chrome'),
   })
+
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update

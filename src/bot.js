@@ -172,29 +172,6 @@ async function iniciarBot() {
     }
   })
 
-  sock.ev.on('creds.update', saveCreds)
-
-    const { connection, lastDisconnect, qr } = update
-    if (qr) {
-      ultimoQR = qr
-      statusConexao = 'Aguardando leitura do QR Code...'
-      console.log('📱 QR Code gerado!')
-    }
-    if (connection === 'open') {
-      ultimoQR = ''
-      statusConexao = '✅ Bot CONECTADO e operando!'
-      console.log('✅ Bot CONECTADO e operando!')
-    }
-    if (connection === 'close') {
-      const statusCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode
-      const reconectar = statusCode !== DisconnectReason.loggedOut
-      statusConexao = 'Reconectando (' + statusCode + ')...'
-      console.log('⚠️ Conexão fechada | Código:', statusCode)
-      if (reconectar) setTimeout(iniciarBot, 2000)
-      else process.exit(0)
-    }
-  })
-
     sock.ev.on('creds.update', saveCreds)
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
     console.log('📩 Evento:', type, '| Qtd:', messages.length)

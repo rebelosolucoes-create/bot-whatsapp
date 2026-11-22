@@ -3,7 +3,7 @@
  */
 
 import http from 'http'
-iimport baileys from '@whiskeysockets/baileys'
+import baileys from '@whiskeysockets/baileys'
 const makeWASocket = baileys.default || baileys
 const {
   DisconnectReason,

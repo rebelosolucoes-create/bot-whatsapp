@@ -114,7 +114,7 @@ async function iniciarBot() {
   }
 
    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys')
-  const cacheMensagens = new Map()
+   const cacheMensagens = new Map()
 
   const sock = makeWASocket({
     auth: state,
@@ -151,10 +151,13 @@ async function iniciarBot() {
     }
   })
 
-  sock.ev.on('creds.update', saveCreds)
+    sock.ev.on('creds.update', saveCreds)
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     console.log('📩 Evento:', type, '| Qtd:', messages.length)
     for (const msg of messages) {
+      if (msg.message && msg.key?.id) {
+        cacheMensagens.set(msg.key.id, msg.message)
+      }
       console.log('🔍 Msg:', JSON.stringify({ fromMe: msg.key.fromMe, jid: msg.key.remoteJid, alt: msg.key.remoteJidAlt, temMsg: !!msg.message }))
       if (msg.key.fromMe || !msg.message) continue
 

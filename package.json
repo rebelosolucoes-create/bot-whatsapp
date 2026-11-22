@@ -5,11 +5,11 @@
   "type": "module",
   "main": "src/bot.js",
   "scripts": {
-    "start": "node src/bot.js"
+  "start": "node src/bot.js"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "npm:baileys@latest",
+    "@whiskeysockets/baileys": "6.7.16",
     "dotenv": "^16.4.5",
     "mongo-baileys": "^1.0.1",
     "mongodb": "^7.9.1",

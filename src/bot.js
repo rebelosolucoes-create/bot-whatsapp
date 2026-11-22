@@ -260,7 +260,6 @@ async function iniciarBot() {
     }
   })
 }
-
 iniciarBot().catch((err) => {
   statusConexao = 'Erro fatal: ' + err.message
   console.error('❌ Erro fatal ao iniciar bot:', err)

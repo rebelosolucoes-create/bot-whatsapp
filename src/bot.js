@@ -28,8 +28,8 @@ http
   .createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     if (ultimoQR) {
-       const qrImg = 'https://qrserver.com' + encodeURIComponent(ultimoQR)
-      res.end(
+      const qrImg = 'https://qrserver.com' + encodeURIComponent(ultimoQR)
+    res.end(
         '<html>' +
           '<head><meta http-equiv="refresh" content="20"><title>QR Code - Bot Cabide VIP</title></head>' +
           '<body style="font-family:sans-serif;text-align:center;padding:40px;">' +
